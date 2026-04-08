@@ -26,11 +26,17 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Stop and remove existing container if it exists
-if [ "$(docker ps -aq -f name=^/${CONTAINER_NAME}$)" ]; then
-    echo "🔄 Stopping and removing existing container '${CONTAINER_NAME}'..."
-    docker rm -f ${CONTAINER_NAME} > /dev/null
+echo "🔄 Cleaning up any existing containers..."
+# 1. Stop and remove our specific container if it exists
+docker rm -f ${CONTAINER_NAME} > /dev/null 2>&1 || true
+
+# 2. Stop any other container that might be blocking our port
+CONFLICTING_CONTAINER=$(docker ps -q -f publish=${PORT})
+if [ -n "$CONFLICTING_CONTAINER" ]; then
+    echo "⚠️  Found other containers using port ${PORT}. Stopping them..."
+    docker rm -f $CONFLICTING_CONTAINER > /dev/null 2>&1 || true
 fi
+
 
 # Build the Docker image
 echo "🔨 Building Docker image '${IMAGE_NAME}'..."
